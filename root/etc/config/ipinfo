@@ -10,3 +10,5 @@ config ipinfo 'config'
 	list loc 'timezone'
 	list co 'latitude'
 	list co 'longitude'
+	list co 'latency'
+	

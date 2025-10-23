@@ -36,9 +36,10 @@ return view.extend({
 
 		o = s.option(form.MultiValue, 'co', _('Coordinate Information'),
 			_('Select coordinate information to display.'));
-		o.display_size = '2';
+		o.display_size = '3';
 		o.value('latitude', _('Latitude'));
 		o.value('longitude', _('Longitude'));
+		o.value('latency', _('Latency'));
 
 		return m.render();
 	},

@@ -39,7 +39,16 @@ return view.extend({
 						return fs.exec('curl', ['-sL', 'ip.guide']).then(function(result) {
 							var data = JSON.parse(result.stdout);
 							jsonData.json = data;
-							return jsonData;
+							// Measure latency to gstatic.com
+							return fs.exec('sh', ['-c', 'start=$(date +%s%3N); curl -s -m 5 -o /dev/null -w "%{http_code}" http://www.gstatic.com/generate_204; end=$(date +%s%3N); echo $((end-start))']).then(function(latencyResult) {
+								if (latencyResult.code === 0) {
+									var latency = parseInt(latencyResult.stdout.trim());
+									jsonData.latency = isNaN(latency) ? null : latency;
+								} else {
+									jsonData.latency = null;
+								}
+								return jsonData;
+							});
 						});
 					} else {
 						return jsonData;
@@ -69,7 +78,8 @@ return view.extend({
 				'location.country': _('Country'),
 				'location.timezone': _('Timezone'),
 				'location.latitude': _('Latitude'),
-				'location.longitude': _('Longitude')
+				'location.longitude': _('Longitude'),
+				'latency': _('Latency')
 			};
 			var dataUci = {
 				'ip': 'ip',
@@ -80,7 +90,8 @@ return view.extend({
 				'location.country': 'country',
 				'location.timezone': 'timezone',
 				'location.latitude': 'latitude',
-				'location.longitude': 'longitude'
+				'location.longitude': 'longitude',
+				'latency': 'latency'
 			};
 			categories.forEach(function(category) {
 				if (data.uci[category]) {
@@ -88,10 +99,34 @@ return view.extend({
 						var propKey = Object.keys(dataUci).find(k => dataUci[k] === key);
 						if (propKey) {
 							hasData = true;
-							var value = propKey.split('.').reduce((o, i) => o ? o[i] : null, data.json);
+							var value;
+							var cellStyle = {};
+							
+							// Handle latency specially
+							if (key === 'latency') {
+								if (data.latency !== null && data.latency !== undefined) {
+									value = data.latency + ' ms';
+									// Color coding based on latency
+									if (data.latency < 100) {
+										cellStyle.color = '#28a745'; // Green
+									} else if (data.latency < 200) {
+										cellStyle.color = '#ffc107'; // Yellow
+									} else if (data.latency < 300) {
+										cellStyle.color = '#fd7e14'; // Orange
+									} else {
+										cellStyle.color = '#dc3545'; // Red
+									}
+									cellStyle['font-weight'] = 'bold';
+								} else {
+									value = '-';
+								}
+							} else {
+								value = propKey.split('.').reduce((o, i) => o ? o[i] : null, data.json);
+							}
+							
 							var row = E('tr', {'class': 'tr'}, [
 								E('td', {'class': 'td left', 'width': '33%'}, propertiesToShow[propKey]),
-								E('td', {'class': 'td left'}, value || '-')
+								E('td', {'class': 'td left', 'style': Object.keys(cellStyle).map(k => k + ':' + cellStyle[k]).join(';')}, value || '-')
 							]);
 							table.appendChild(row);
 						}
